@@ -40,6 +40,12 @@ const routes = [
         name: 'UserProfile',
         component: () => import('../views/UserProfileView.vue'),
         meta: { title: '个人中心' }
+      },
+      {
+        path: 'coach',
+        name: 'CoachList',
+        component: () => import('../views/CoachListView.vue'),
+        meta: { title: '教练管理', requiresAdmin: true }
       }
     ]
   },

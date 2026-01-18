@@ -32,6 +32,11 @@
           <template #title>用户管理</template>
         </el-menu-item>
         
+        <el-menu-item v-if="userStore.isAdmin" index="/coach">
+          <el-icon><Avatar /></el-icon>
+          <template #title>教练管理</template>
+        </el-menu-item>
+        
         <el-menu-item index="/user/profile">
           <el-icon><UserFilled /></el-icon>
           <template #title>个人中心</template>
@@ -99,6 +104,7 @@ import {
   HomeFilled, 
   User, 
   UserFilled, 
+  Avatar,
   Expand, 
   Fold, 
   ArrowDown,
@@ -121,7 +127,8 @@ const currentRouteName = computed(() => {
   const routeMap = {
     '/home': '',
     '/user/list': '用户管理',
-    '/user/profile': '个人中心'
+    '/user/profile': '个人中心',
+    '/coach': '教练管理'
   }
   return routeMap[route.path] || ''
 })
