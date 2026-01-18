@@ -1,79 +1,255 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+/* 全局样式 - 游泳馆管理系统设计规范 */
+
+/* === 全局重置 === */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Inter', 'Roboto', sans-serif;
+  font-size: 14px;
   line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+  color: #2C3E50;
+  background-color: #F7FAFC;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
+#app {
+  width: 100%;
   min-height: 100vh;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* === Element Plus 组件样式覆盖 === */
+
+/* 主色调 */
+.el-button--primary {
+  --el-button-bg-color: #1A6B9F;
+  --el-button-border-color: #1A6B9F;
+  --el-button-hover-bg-color: #2AA9E0;
+  --el-button-hover-border-color: #2AA9E0;
+  --el-button-active-bg-color: #1A6B9F;
+  --el-button-active-border-color: #1A6B9F;
 }
 
-button {
+/* 输入框聚焦颜色 */
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 3px rgba(42, 169, 224, 0.2) !important;
+}
+
+/* 单选框选中颜色 */
+.el-radio__input.is-checked .el-radio__inner {
+  border-color: #2AA9E0;
+  background-color: #2AA9E0;
+}
+
+.el-radio__input.is-checked + .el-radio__label {
+  color: #2AA9E0;
+}
+
+/* 链接按钮颜色 */
+.el-button--text {
+  --el-button-text-color: #2AA9E0;
+  --el-button-hover-text-color: #1A6B9F;
+}
+
+/* 消息提示样式 */
+.el-message {
   border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
+  box-shadow: 0 4px 16px rgba(26, 107, 159, 0.2);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.el-message--success {
+  background-color: #34C759 !important;
+  border-color: #34C759 !important;
+}
+
+.el-message--success .el-message__content {
+  color: #FFFFFF !important;
   font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
 }
 
-.card {
-  padding: 2em;
+.el-message--success .el-message__icon {
+  color: #FFFFFF !important;
 }
 
-#app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+.el-message--error {
+  background: linear-gradient(135deg, rgba(255, 59, 48, 0.95) 0%, rgba(255, 87, 34, 0.95) 100%);
+  border-color: rgba(255, 59, 48, 0.5);
+  color: #FFFFFF;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+.el-message--error .el-message__icon {
+  color: #FFFFFF;
+}
+
+.el-message--error .el-message__content {
+  color: #FFFFFF;
+  font-weight: 500;
+}
+
+.el-message--warning {
+  background: linear-gradient(135deg, rgba(255, 154, 61, 0.95) 0%, rgba(255, 193, 7, 0.95) 100%);
+  border-color: rgba(255, 154, 61, 0.5);
+  color: #FFFFFF;
+}
+
+.el-message--warning .el-message__icon {
+  color: #FFFFFF;
+}
+
+.el-message--warning .el-message__content {
+  color: #FFFFFF;
+  font-weight: 500;
+}
+
+.el-message--info {
+  background: linear-gradient(135deg, rgba(127, 140, 141, 0.95) 0%, rgba(189, 195, 199, 0.95) 100%);
+  border-color: rgba(127, 140, 141, 0.5);
+  color: #FFFFFF;
+}
+
+.el-message--info .el-message__icon {
+  color: #FFFFFF;
+}
+
+.el-message--info .el-message__content {
+  color: #FFFFFF;
+  font-weight: 500;
+}
+
+/* === 通用工具类 === */
+
+/* 圆角 */
+.radius-sm {
+  border-radius: 4px;
+}
+
+.radius-md {
+  border-radius: 8px;
+}
+
+.radius-lg {
+  border-radius: 12px;
+}
+
+/* 阴影 */
+.shadow-light {
+  box-shadow: 0 2px 8px rgba(42, 169, 224, 0.08);
+}
+
+.shadow-medium {
+  box-shadow: 0 4px 12px rgba(26, 107, 159, 0.12);
+}
+
+.shadow-focus {
+  box-shadow: 0 0 0 3px rgba(42, 169, 224, 0.2);
+}
+
+/* 文本颜色 */
+.text-primary {
+  color: #1A6B9F;
+}
+
+.text-accent {
+  color: #2AA9E0;
+}
+
+.text-secondary {
+  color: #7F8C8D;
+}
+
+.text-success {
+  color: #34C759;
+}
+
+.text-warning {
+  color: #FF9A3D;
+}
+
+.text-danger {
+  color: #FF3B30;
+}
+
+/* 背景色 */
+.bg-light {
+  background-color: #F7FAFC;
+}
+
+.bg-white {
+  background-color: #FFFFFF;
+}
+
+/* === 滚动条样式 === */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F7FAFC;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #BDC3C7;
+  border-radius: 4px;
+  transition: background 0.3s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #7F8C8D;
+}
+
+/* === 动画效果 === */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
   }
-  a:hover {
-    color: #747bff;
+  to {
+    opacity: 1;
   }
-  button {
-    background-color: #f9f9f9;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
   }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.slide-up {
+  animation: slideUp 0.5s ease-out;
+}
+
+.slide-down {
+  animation: slideDown 0.5s ease-out;
 }

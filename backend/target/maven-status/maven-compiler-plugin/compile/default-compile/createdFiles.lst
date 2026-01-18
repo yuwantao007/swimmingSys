@@ -1,0 +1,17 @@
+com\swimmingsys\mapper\UserMapper.class
+com\swimmingsys\config\MyBatisPlusConfig.class
+com\swimmingsys\common\Result.class
+com\swimmingsys\utils\Md5Util.class
+com\swimmingsys\common\ResultCode.class
+com\swimmingsys\config\Knife4jConfig.class
+com\swimmingsys\model\dto\UserLoginDTO.class
+com\swimmingsys\model\dto\UserRegisterDTO.class
+com\swimmingsys\model\vo\LoginVO.class
+com\swimmingsys\utils\JwtUtil.class
+com\swimmingsys\config\CorsConfig.class
+com\swimmingsys\SwimmingSysApplication.class
+com\swimmingsys\controller\UserController.class
+com\swimmingsys\service\UserService.class
+com\swimmingsys\model\vo\UserVO.class
+com\swimmingsys\service\impl\UserServiceImpl.class
+com\swimmingsys\model\entity\User.class

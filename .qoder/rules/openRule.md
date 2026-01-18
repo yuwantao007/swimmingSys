@@ -46,7 +46,7 @@ trigger: always_on
 --  Controller 不直接访问数据库，必须走 Service
 -- 实体类用@Data(引入lombok依赖)注解简化多余代码
 -- 不要使用@Autowired注解，改为用@Resource注解进行依赖注入
-1
+1  controller层对传回的参数要做非空判断
 2
 3
 1
