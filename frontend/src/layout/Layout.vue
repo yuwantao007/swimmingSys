@@ -37,6 +37,24 @@
           <template #title>教练管理</template>
         </el-menu-item>
         
+        <!-- 课程管理菜单（管理员） -->
+        <el-menu-item v-if="userStore.isAdmin" index="/course/manage">
+          <el-icon><Calendar /></el-icon>
+          <template #title>课程管理</template>
+        </el-menu-item>
+        
+        <!-- 课程浏览菜单（所有用户） -->
+        <el-menu-item index="/course/list">
+          <el-icon><Reading /></el-icon>
+          <template #title>课程浏览</template>
+        </el-menu-item>
+        
+        <!-- 我的预约菜单（会员） -->
+        <el-menu-item v-if="userStore.isMember" index="/booking/my">
+          <el-icon><Tickets /></el-icon>
+          <template #title>我的预约</template>
+        </el-menu-item>
+        
         <el-menu-item index="/user/profile">
           <el-icon><UserFilled /></el-icon>
           <template #title>个人中心</template>
@@ -105,6 +123,9 @@ import {
   User, 
   UserFilled, 
   Avatar,
+  Calendar,
+  Reading,
+  Tickets,
   Expand, 
   Fold, 
   ArrowDown,
@@ -128,7 +149,10 @@ const currentRouteName = computed(() => {
     '/home': '',
     '/user/list': '用户管理',
     '/user/profile': '个人中心',
-    '/coach': '教练管理'
+    '/coach': '教练管理',
+    '/course/manage': '课程管理',
+    '/course/list': '课程浏览',
+    '/booking/my': '我的预约'
   }
   return routeMap[route.path] || ''
 })

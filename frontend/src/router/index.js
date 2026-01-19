@@ -46,6 +46,27 @@ const routes = [
         name: 'CoachList',
         component: () => import('../views/CoachListView.vue'),
         meta: { title: '教练管理', requiresAdmin: true }
+      },
+      // 课程管理（管理员）
+      {
+        path: 'course/manage',
+        name: 'CourseManage',
+        component: () => import('../views/CourseManageView.vue'),
+        meta: { title: '课程管理', requiresAdmin: true }
+      },
+      // 课程列表（所有登录用户可见）
+      {
+        path: 'course/list',
+        name: 'CourseList',
+        component: () => import('../views/CourseListView.vue'),
+        meta: { title: '课程浏览' }
+      },
+      // 我的预约（会员）
+      {
+        path: 'booking/my',
+        name: 'MyBookings',
+        component: () => import('../views/MyBookingsView.vue'),
+        meta: { title: '我的预约', requiresMember: true }
       }
     ]
   },
@@ -82,6 +103,13 @@ router.beforeEach((to, from, next) => {
     // 如果需要管理员权限
     if (to.meta.requiresAdmin && userInfo.role !== ROLE.ADMIN) {
       // 非管理员，跳转首页
+      next({ path: '/home' })
+      return
+    }
+    
+    // 如果需要会员权限
+    if (to.meta.requiresMember && userInfo.role !== ROLE.MEMBER) {
+      // 非会员，跳转首页
       next({ path: '/home' })
       return
     }
