@@ -2,6 +2,7 @@ package com.swimmingsys.model.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
+import org.springframework.format.annotation.DateTimeFormat;
 
 import javax.validation.constraints.Min;
 import java.io.Serializable;
@@ -46,12 +47,14 @@ public class BookingQueryDTO implements Serializable {
     /**
      * 预约时间范围-起
      */
+    @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private LocalDateTime bookingTimeBegin;
 
     /**
      * 预约时间范围-止
      */
+    @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private LocalDateTime bookingTimeEnd;
 }

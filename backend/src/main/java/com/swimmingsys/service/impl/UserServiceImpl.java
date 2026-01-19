@@ -37,6 +37,9 @@ public class UserServiceImpl implements UserService {
     @Resource
     private JwtUtil jwtUtil;
 
+    @Resource
+    private com.swimmingsys.service.StatisticsService statisticsService;
+
     /**
      * 用户注册
      *
@@ -150,7 +153,15 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("注册失败");
         }
 
-        // 13. 返回用户信息（不包含密码）
+        // 13. 清除会员统计缓存和运营概览缓存
+        try {
+            statisticsService.clearMemberCache();
+            statisticsService.clearDashboardCache();
+        } catch (Exception e) {
+            // 缓存清除失败不影响主业务
+        }
+
+        // 14. 返回用户信息（不包含密码）
         return convertToUserVO(user);
     }
 

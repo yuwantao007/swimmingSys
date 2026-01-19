@@ -67,6 +67,60 @@ const routes = [
         name: 'MyBookings',
         component: () => import('../views/MyBookingsView.vue'),
         meta: { title: '我的预约', requiresMember: true }
+      },
+      // 入场管理模块
+      // 生成入场码（会员）- 独立入口，支持无预约时也能生成入场码
+      {
+        path: 'entrance/qrcode',
+        name: 'EntranceQrcode',
+        component: () => import('../views/entrance/EntranceQrcodeView.vue'),
+        meta: { title: '生成入场码', requiresMember: true }
+      },
+      // 我的入场记录（会员）
+      {
+        path: 'entrance/my-records',
+        name: 'MyEntranceRecords',
+        component: () => import('../views/entrance/MyEntranceRecordView.vue'),
+        meta: { title: '我的入场记录', requiresMember: true }
+      },
+      // 扫码验证（管理员）
+      {
+        path: 'entrance/verify',
+        name: 'EntranceVerify',
+        component: () => import('../views/entrance/EntranceVerifyView.vue'),
+        meta: { title: '扫码验证', requiresAdmin: true }
+      },
+      // 入场记录管理（管理员）
+      {
+        path: 'entrance/records',
+        name: 'EntranceRecordManage',
+        component: () => import('../views/entrance/EntranceRecordManageView.vue'),
+        meta: { title: '入场记录管理', requiresAdmin: true }
+      },
+      // 统计分析模块（管理员）
+      {
+        path: 'statistics',
+        name: 'Statistics',
+        component: () => import('../views/statistics/StatisticsView.vue'),
+        meta: { title: '运营概览', requiresAdmin: true }
+      },
+      {
+        path: 'statistics/member',
+        name: 'MemberStatistics',
+        component: () => import('../views/statistics/MemberStatistics.vue'),
+        meta: { title: '会员统计', requiresAdmin: true }
+      },
+      {
+        path: 'statistics/booking',
+        name: 'BookingStatistics',
+        component: () => import('../views/statistics/BookingStatistics.vue'),
+        meta: { title: '预约统计', requiresAdmin: true }
+      },
+      {
+        path: 'statistics/entrance',
+        name: 'EntranceStatistics',
+        component: () => import('../views/statistics/EntranceStatistics.vue'),
+        meta: { title: '入场统计', requiresAdmin: true }
       }
     ]
   },

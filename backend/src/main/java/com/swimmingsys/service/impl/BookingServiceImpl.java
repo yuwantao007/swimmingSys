@@ -44,6 +44,9 @@ public class BookingServiceImpl implements BookingService {
     @Resource
     private UserMapper userMapper;
 
+    @Resource
+    private com.swimmingsys.service.StatisticsService statisticsService;
+
     /**
      * 乐观锁更新最大重试次数
      */
@@ -165,6 +168,14 @@ public class BookingServiceImpl implements BookingService {
                 int insertResult = bookingMapper.insert(booking);
                 if (insertResult <= 0) {
                     throw new RuntimeException("创建预约记录失败");
+                }
+
+                // 清除预约统计缓存和运营概览缓存
+                try {
+                    statisticsService.clearBookingCache();
+                    statisticsService.clearDashboardCache();
+                } catch (Exception e) {
+                    // 缓存清除失败不影响主业务
                 }
 
                 return convertToBookingVO(booking);
@@ -426,6 +437,15 @@ public class BookingServiceImpl implements BookingService {
                 booking.setStatus(0); // 已取消
                 booking.setCancelTime(LocalDateTime.now());
                 int result = bookingMapper.updateById(booking);
+
+                // 清除预约统计缓存和运营概览缓存
+                try {
+                    statisticsService.clearBookingCache();
+                    statisticsService.clearDashboardCache();
+                } catch (Exception e) {
+                    // 缓存清除失败不影响主业务
+                }
+
                 return result > 0;
             }
 

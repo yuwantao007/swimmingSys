@@ -55,6 +55,43 @@
           <template #title>我的预约</template>
         </el-menu-item>
         
+        <!-- 入场管理菜单 -->
+        <!-- 会员菜单：生成入场码 -->
+        <el-menu-item v-if="userStore.isMember" index="/entrance/qrcode">
+          <el-icon><Checked /></el-icon>
+          <template #title>生成入场码</template>
+        </el-menu-item>
+        
+        <!-- 会员菜单：我的入场记录 -->
+        <el-menu-item v-if="userStore.isMember" index="/entrance/my-records">
+          <el-icon><DocumentChecked /></el-icon>
+          <template #title>我的入场记录</template>
+        </el-menu-item>
+        
+        <!-- 管理员菜单：扫码验证 -->
+        <el-menu-item v-if="userStore.isAdmin" index="/entrance/verify">
+          <el-icon><Checked /></el-icon>
+          <template #title>扫码验证</template>
+        </el-menu-item>
+        
+        <!-- 管理员菜单：入场记录管理 -->
+        <el-menu-item v-if="userStore.isAdmin" index="/entrance/records">
+          <el-icon><List /></el-icon>
+          <template #title>入场记录管理</template>
+        </el-menu-item>
+        
+        <!-- 统计分析菜单（管理员） -->
+        <el-sub-menu v-if="userStore.isAdmin" index="/statistics">
+          <template #title>
+            <el-icon><DataAnalysis /></el-icon>
+            <span>统计分析</span>
+          </template>
+          <el-menu-item index="/statistics">运营概览</el-menu-item>
+          <el-menu-item index="/statistics/member">会员统计</el-menu-item>
+          <el-menu-item index="/statistics/booking">预约统计</el-menu-item>
+          <el-menu-item index="/statistics/entrance">入场统计</el-menu-item>
+        </el-sub-menu>
+        
         <el-menu-item index="/user/profile">
           <el-icon><UserFilled /></el-icon>
           <template #title>个人中心</template>
@@ -129,7 +166,11 @@ import {
   Expand, 
   Fold, 
   ArrowDown,
-  SwitchButton 
+  SwitchButton,
+  Checked,
+  DocumentChecked,
+  List,
+  DataAnalysis
 } from '@element-plus/icons-vue'
 import { useUserStore } from '../store/user'
 
@@ -152,7 +193,15 @@ const currentRouteName = computed(() => {
     '/coach': '教练管理',
     '/course/manage': '课程管理',
     '/course/list': '课程浏览',
-    '/booking/my': '我的预约'
+    '/booking/my': '我的预约',
+    '/entrance/qrcode': '生成入场码',
+    '/entrance/my-records': '我的入场记录',
+    '/entrance/verify': '扫码验证',
+    '/entrance/records': '入场记录管理',
+    '/statistics': '运营概览',
+    '/statistics/member': '会员统计',
+    '/statistics/booking': '预约统计',
+    '/statistics/entrance': '入场统计'
   }
   return routeMap[route.path] || ''
 })
