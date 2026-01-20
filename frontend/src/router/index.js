@@ -121,6 +121,40 @@ const routes = [
         name: 'EntranceStatistics',
         component: () => import('../views/statistics/EntranceStatistics.vue'),
         meta: { title: '入场统计', requiresAdmin: true }
+      },
+      // 文章资料管理模块（管理员）
+      {
+        path: 'article/list',
+        name: 'ArticleList',
+        component: () => import('../views/article/ArticleListView.vue'),
+        meta: { title: '资料管理', requiresAdmin: true }
+      },
+      {
+        path: 'article/add',
+        name: 'ArticleAdd',
+        component: () => import('../views/article/ArticleAddView.vue'),
+        meta: { title: '新增资料', requiresAdmin: true }
+      },
+      {
+        path: 'article/edit/:id',
+        name: 'ArticleEdit',
+        component: () => import('../views/article/ArticleEditView.vue'),
+        meta: { title: '编辑资料', requiresAdmin: true },
+        props: true
+      },
+      // 公开资料展示（所有用户）
+      {
+        path: 'article/public',
+        name: 'PublicArticleList',
+        component: () => import('../views/article/PublicArticleListView.vue'),
+        meta: { title: '资料中心' }
+      },
+      {
+        path: 'article/detail/:id',
+        name: 'ArticleDetail',
+        component: () => import('../views/article/ArticleDetailView.vue'),
+        meta: { title: '资料详情' },
+        props: true
       }
     ]
   },

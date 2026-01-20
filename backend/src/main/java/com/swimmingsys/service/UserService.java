@@ -2,6 +2,7 @@ package com.swimmingsys.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.swimmingsys.model.dto.UserAddDTO;
+import com.swimmingsys.model.dto.UserBatchExpirationDTO;
 import com.swimmingsys.model.dto.UserLoginDTO;
 import com.swimmingsys.model.dto.UserQueryDTO;
 import com.swimmingsys.model.dto.UserRegisterDTO;
@@ -10,6 +11,8 @@ import com.swimmingsys.model.entity.User;
 import com.swimmingsys.model.vo.UserVO;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 用户服务接口
@@ -34,7 +37,7 @@ public interface UserService {
 
     /**
      * 获取当前登录用户
-     * 从HTTP请求中提取JWT令牌，验证令牌有效性并返回用户信息
+     * 从 HTTP请求中提取JWT令牌，验证令牌有效性并返回用户信息
      *
      * @param request HTTP请求对象
      * @return 当前登录的用户实体
@@ -86,4 +89,46 @@ public interface UserService {
      * @return 是否删除成功
      */
     boolean deleteUser(Long id);
+
+    // ==================== 过期管理方法 ====================
+
+    /**
+     * 检查用户是否已过期
+     *
+     * @param user 用户实体
+     * @return 是否已过期
+     */
+    boolean isUserExpired(User user);
+
+    /**
+     * 计算距离过期天数
+     *
+     * @param user 用户实体
+     * @return 距离过期天数（负数表示已过期）
+     */
+    long getDaysUntilExpiration(User user);
+
+    /**
+     * 检查并处理过期用户
+     * 将过期会员降级为非会员并禁用账户
+     *
+     * @return 处理结果统计
+     */
+    Map<String, Object> checkAndHandleExpiredUsers();
+
+    /**
+     * 获取即将过期的用户列表
+     *
+     * @param days 预警天数
+     * @return 即将过期的用户列表
+     */
+    List<UserVO> getExpiringUsers(int days);
+
+    /**
+     * 批量设置用户过期时间
+     *
+     * @param batchDTO 批量操作DTO
+     * @return 操作结果
+     */
+    Map<String, Object> batchSetExpiration(UserBatchExpirationDTO batchDTO);
 }

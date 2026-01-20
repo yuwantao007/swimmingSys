@@ -212,7 +212,9 @@ public class CourseServiceImpl implements CourseService {
             course.setEndTime(updateDTO.getEndTime());
         }
         // 校验时间逻辑
-        if (course.getStartTime().isAfter(course.getEndTime())) {
+        LocalDateTime startTime = updateDTO.getStartTime() != null ? updateDTO.getStartTime() : course.getStartTime();
+        LocalDateTime endTime = updateDTO.getEndTime() != null ? updateDTO.getEndTime() : course.getEndTime();
+        if (startTime.isAfter(endTime)) {
             throw new RuntimeException("课程开始时间不能晚于结束时间");
         }
         if (updateDTO.getCapacity() != null) {

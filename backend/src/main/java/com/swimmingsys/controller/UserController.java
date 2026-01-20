@@ -5,6 +5,7 @@ import com.swimmingsys.common.Result;
 import com.swimmingsys.common.RoleConstant;
 import com.swimmingsys.common.annotation.AuthCheck;
 import com.swimmingsys.model.dto.UserAddDTO;
+import com.swimmingsys.model.dto.UserBatchExpirationDTO;
 import com.swimmingsys.model.dto.UserLoginDTO;
 import com.swimmingsys.model.dto.UserQueryDTO;
 import com.swimmingsys.model.dto.UserRegisterDTO;
@@ -21,6 +22,8 @@ import org.springframework.web.bind.annotation.*;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 用户控制器
@@ -225,6 +228,74 @@ public class UserController {
         try {
             boolean result = userService.deleteUser(id);
             return Result.success("删除成功", result);
+        } catch (Exception e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
+    // ==================== 过期管理接口 ====================
+
+    /**
+     * 获取即将过期的用户列表
+     * 仅管理员可调用
+     *
+     * @param days 预警天数，默认7天
+     * @return 即将过期的用户列表
+     */
+    @ApiOperation("获取即将过期的用户列表")
+    @GetMapping("/expiring")
+    @AuthCheck(mustRole = RoleConstant.ADMIN)
+    public Result<List<UserVO>> getExpiringUsers(
+            @ApiParam(value = "预警天数", defaultValue = "7") @RequestParam(defaultValue = "7") Integer days) {
+        // Controller层参数非空判断
+        if (days == null || days < 1) {
+            return Result.error("预警天数必须大于0");
+        }
+        try {
+            List<UserVO> expiringUsers = userService.getExpiringUsers(days);
+            return Result.success("查询成功", expiringUsers);
+        } catch (Exception e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 手动检查并处理过期用户
+     * 仅管理员可调用
+     *
+     * @return 处理结果统计
+     */
+    @ApiOperation("手动检查并处理过期用户")
+    @PostMapping("/check-expired")
+    @AuthCheck(mustRole = RoleConstant.ADMIN)
+    public Result<Map<String, Object>> checkExpiredUsers() {
+        try {
+            Map<String, Object> result = userService.checkAndHandleExpiredUsers();
+            return Result.success("检查完成", result);
+        } catch (Exception e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 批量设置用户过期时间
+     * 仅管理员可调用
+     *
+     * @param batchDTO 批量操作DTO
+     * @return 操作结果
+     */
+    @ApiOperation("批量设置用户过期时间")
+    @PostMapping("/batch-expiration")
+    @AuthCheck(mustRole = RoleConstant.ADMIN)
+    public Result<Map<String, Object>> batchSetExpiration(
+            @Valid @RequestBody UserBatchExpirationDTO batchDTO) {
+        // Controller层参数非空判断
+        if (batchDTO == null) {
+            return Result.error("批量操作信息不能为空");
+        }
+        try {
+            Map<String, Object> result = userService.batchSetExpiration(batchDTO);
+            return Result.success("批量操作完成", result);
         } catch (Exception e) {
             return Result.error(e.getMessage());
         }

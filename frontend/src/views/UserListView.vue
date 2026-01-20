@@ -27,6 +27,14 @@
             <el-option label="禁用" :value="0" />
           </el-select>
         </el-form-item>
+        <el-form-item label="过期状态">
+          <el-select v-model="queryForm.expirationStatus" placeholder="请选择过期状态" clearable style="width: 130px">
+            <el-option label="全部" value="all" />
+            <el-option label="已过期" value="expired" />
+            <el-option label="即将过期" value="expiring" />
+            <el-option label="正常" value="normal" />
+          </el-select>
+        </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleSearch">
             <el-icon><Search /></el-icon>搜索
@@ -43,6 +51,9 @@
       <el-button type="primary" @click="handleAdd">
         <el-icon><Plus /></el-icon>新增用户
       </el-button>
+      <el-button type="warning" :disabled="selectedUsers.length === 0" @click="handleBatchExpiration">
+        批量设置过期时间 ({{ selectedUsers.length }})
+      </el-button>
     </div>
 
     <!-- 表格区域 -->
@@ -53,7 +64,9 @@
         border
         stripe
         style="width: 100%"
+        @selection-change="handleSelectionChange"
       >
+        <el-table-column type="selection" width="55" align="center" />
         <el-table-column prop="id" label="ID" width="80" align="center" />
         <el-table-column label="头像" width="70" align="center">
           <template #default="{ row }">
@@ -83,6 +96,23 @@
             <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
               {{ row.status === 1 ? '启用' : '禁用' }}
             </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="过期时间" width="180" align="center">
+          <template #default="{ row }">
+            <div v-if="row.expirationTime">
+              <div>{{ row.expirationTime }}</div>
+              <el-tag v-if="row.expired" type="danger" size="small" style="margin-top: 4px">
+                已过期
+              </el-tag>
+              <el-tag v-else-if="row.expirationWarning" type="warning" size="small" style="margin-top: 4px">
+                {{ row.daysUntilExpiration }}天后过期
+              </el-tag>
+              <el-tag v-else type="success" size="small" style="margin-top: 4px">
+                {{ row.daysUntilExpiration }}天后过期
+              </el-tag>
+            </div>
+            <el-tag v-else type="info" size="small">永久有效</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="createdTime" label="创建时间" width="170" />
@@ -167,10 +197,72 @@
             inactive-text="禁用"
           />
         </el-form-item>
+        <el-form-item label="过期时间">
+          <el-date-picker
+            v-model="userForm.expirationTime"
+            type="datetime"
+            placeholder="选择过期时间"
+            format="YYYY-MM-DD HH:mm:ss"
+            value-format="YYYY-MM-DD HH:mm:ss"
+            style="width: 100%"
+            clearable
+          />
+          <div style="color: #909399; font-size: 12px; margin-top: 4px">
+            不设置则永久有效
+          </div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 批量设置过期时间弹窗 -->
+    <el-dialog
+      v-model="batchDialogVisible"
+      title="批量设置过期时间"
+      width="500px"
+      :close-on-click-modal="false"
+    >
+      <el-form label-width="100px">
+        <el-form-item label="操作类型">
+          <el-radio-group v-model="batchForm.operationType">
+            <el-radio label="set">设置固定时间</el-radio>
+            <el-radio label="extend">延长天数</el-radio>
+            <el-radio label="shorten">缩短天数</el-radio>
+            <el-radio label="clear">清空（永久有效）</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="batchForm.operationType === 'set'" label="过期时间">
+          <el-date-picker
+            v-model="batchForm.expirationTime"
+            type="datetime"
+            placeholder="选择过期时间"
+            format="YYYY-MM-DD HH:mm:ss"
+            value-format="YYYY-MM-DD HH:mm:ss"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item v-if="['extend', 'shorten'].includes(batchForm.operationType)" label="天数">
+          <el-input-number v-model="batchForm.days" :min="1" :max="3650" style="width: 100%" />
+        </el-form-item>
+        <el-alert
+          v-if="batchForm.operationType === 'clear'"
+          title="清空后用户将永久有效，不会过期"
+          type="warning"
+          :closable="false"
+          style="margin-bottom: 16px"
+        />
+        <el-alert
+          :title="`已选择 ${selectedUsers.length} 个用户`"
+          type="info"
+          :closable="false"
+        />
+      </el-form>
+      <template #footer>
+        <el-button @click="batchDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="handleBatchSubmit">确定</el-button>
       </template>
     </el-dialog>
   </div>
@@ -180,7 +272,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus } from '@element-plus/icons-vue'
-import { getUserList, getUserById, addUser, updateUser, deleteUser } from '../api/user'
+import { getUserList, getUserById, addUser, updateUser, deleteUser, batchSetExpiration } from '../api/user'
 import { ROLE, ROLE_NAME, GENDER_NAME } from '../store/user'
 
 // 加载状态
@@ -200,8 +292,13 @@ const queryForm = reactive({
   phone: '',
   email: '',
   role: null,
-  status: null
+  status: null,
+  expirationStatus: 'all',
+  warningDays: 7
 })
+
+// 多选相关
+const selectedUsers = ref([])
 
 // 弹窗相关
 const dialogVisible = ref(false)
@@ -218,7 +315,16 @@ const userForm = reactive({
   email: '',
   gender: 0,
   role: 2,
-  status: 1
+  status: 1,
+  expirationTime: null
+})
+
+// 批量操作弹窗
+const batchDialogVisible = ref(false)
+const batchForm = reactive({
+  operationType: 'set',
+  expirationTime: null,
+  days: 30
 })
 
 // 表单验证规则
@@ -295,7 +401,59 @@ const handleReset = () => {
   queryForm.email = ''
   queryForm.role = null
   queryForm.status = null
+  queryForm.expirationStatus = 'all'
+  queryForm.warningDays = 7
   fetchUserList()
+}
+
+// 表格多选
+const handleSelectionChange = (selection) => {
+  selectedUsers.value = selection
+}
+
+// 批量设置过期时间
+const handleBatchExpiration = () => {
+  batchDialogVisible.value = true
+}
+
+// 提交批量操作
+const handleBatchSubmit = async () => {
+  if (selectedUsers.value.length === 0) {
+    ElMessage.warning('请先选择用户')
+    return
+  }
+
+  // 参数校验
+  if (batchForm.operationType === 'set' && !batchForm.expirationTime) {
+    ElMessage.warning('请选择过期时间')
+    return
+  }
+  if (['extend', 'shorten'].includes(batchForm.operationType) && (!batchForm.days || batchForm.days <= 0)) {
+    ElMessage.warning('请输入有效的天数')
+    return
+  }
+
+  try {
+    submitLoading.value = true
+    const userIds = selectedUsers.value.map(user => user.id)
+    const data = {
+      userIds,
+      operationType: batchForm.operationType,
+      expirationTime: batchForm.expirationTime,
+      days: batchForm.days
+    }
+
+    const res = await batchSetExpiration(data)
+    if (res.success) {
+      ElMessage.success(res.data.message || '批量操作成功')
+      batchDialogVisible.value = false
+      fetchUserList()
+    }
+  } catch (error) {
+    console.error('批量操作失败:', error)
+  } finally {
+    submitLoading.value = false
+  }
 }
 
 // 分页大小改变
@@ -330,6 +488,7 @@ const handleEdit = async (row) => {
       userForm.gender = data.gender
       userForm.role = data.role
       userForm.status = data.status
+      userForm.expirationTime = data.expirationTime || null
       userForm.password = ''
       dialogVisible.value = true
     }
@@ -402,6 +561,7 @@ const resetForm = () => {
   userForm.gender = 0
   userForm.role = 2
   userForm.status = 1
+  userForm.expirationTime = null
   currentUserId.value = null
   formRef.value?.clearValidate()
 }

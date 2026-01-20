@@ -1,9 +1,12 @@
 package com.swimmingsys.model.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
+import org.springframework.format.annotation.DateTimeFormat;
 
 import javax.validation.constraints.*;
 import java.io.Serializable;
+import java.time.LocalDateTime;
 
 /**
  * 管理员新增用户DTO
@@ -76,4 +79,11 @@ public class UserAddDTO implements Serializable {
     @Min(value = 0, message = "状态值无效")
     @Max(value = 1, message = "状态值无效")
     private Integer status;
+
+    /**
+     * 账户过期时间，NULL表示永久有效
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+    private LocalDateTime expirationTime;
 }

@@ -67,6 +67,11 @@ public class User implements Serializable {
     private Integer status;
 
     /**
+     * 账户过期时间，NULL表示永久有效
+     */
+    private LocalDateTime expirationTime;
+
+    /**
      * 逻辑删除：0-未删除，1-已删除
      */
     @TableLogic

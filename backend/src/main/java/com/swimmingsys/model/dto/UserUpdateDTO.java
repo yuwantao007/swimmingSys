@@ -1,9 +1,12 @@
 package com.swimmingsys.model.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
+import org.springframework.format.annotation.DateTimeFormat;
 
 import javax.validation.constraints.*;
 import java.io.Serializable;
+import java.time.LocalDateTime;
 
 /**
  * 用户信息更新DTO
@@ -66,4 +69,12 @@ public class UserUpdateDTO implements Serializable {
      */
     @Size(min = 6, max = 32, message = "密码长度必须在6-32位之间")
     private String password;
+
+    /**
+     * 账户过期时间，NULL表示永久有效
+     * 仅管理员可修改
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+    private LocalDateTime expirationTime;
 }

@@ -92,6 +92,18 @@
           <el-menu-item index="/statistics/entrance">入场统计</el-menu-item>
         </el-sub-menu>
         
+        <!-- 文章资料管理菜单（管理员） -->
+        <el-menu-item v-if="userStore.isAdmin" index="/article/list">
+          <el-icon><Collection /></el-icon>
+          <template #title>资料管理</template>
+        </el-menu-item>
+        
+        <!-- 资料中心菜单（所有用户） -->
+        <el-menu-item index="/article/public">
+          <el-icon><Reading /></el-icon>
+          <template #title>资料中心</template>
+        </el-menu-item>
+        
         <el-menu-item index="/user/profile">
           <el-icon><UserFilled /></el-icon>
           <template #title>个人中心</template>
@@ -163,6 +175,7 @@ import {
   Calendar,
   Reading,
   Tickets,
+  Collection,
   Expand, 
   Fold, 
   ArrowDown,
@@ -201,7 +214,12 @@ const currentRouteName = computed(() => {
     '/statistics': '运营概览',
     '/statistics/member': '会员统计',
     '/statistics/booking': '预约统计',
-    '/statistics/entrance': '入场统计'
+    '/statistics/entrance': '入场统计',
+    '/article/list': '资料管理',
+    '/article/add': '新增资料',
+    '/article/edit': '编辑资料',
+    '/article/public': '资料中心',
+    '/article/detail': '资料详情'
   }
   return routeMap[route.path] || ''
 })

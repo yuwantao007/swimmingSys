@@ -1,5 +1,42 @@
 <template>
   <div class="profile-container">
+    <!-- 过期预警卡片 -->
+    <el-alert
+      v-if="userStore.userInfo.expirationWarning && !userStore.isAdmin"
+      type="warning"
+      :closable="false"
+      style="margin-bottom: 20px"
+    >
+      <template #title>
+        <div style="display: flex; align-items: center; gap: 8px">
+          <el-icon :size="20"><WarningFilled /></el-icon>
+          <span style="font-size: 16px; font-weight: 600">账户即将过期提醒</span>
+        </div>
+      </template>
+      <div style="margin-top: 8px; font-size: 14px">
+        您的账户将在 <strong>{{ userStore.userInfo.daysUntilExpiration }}</strong> 天后过期（{{ userStore.userInfo.expirationTime }}）。
+        过期后将无法使用会员功能，请及时联系管理员续费。
+      </div>
+    </el-alert>
+
+    <el-alert
+      v-if="userStore.userInfo.expired && !userStore.isAdmin"
+      type="error"
+      :closable="false"
+      style="margin-bottom: 20px"
+    >
+      <template #title>
+        <div style="display: flex; align-items: center; gap: 8px">
+          <el-icon :size="20"><CircleCloseFilled /></el-icon>
+          <span style="font-size: 16px; font-weight: 600">账户已过期</span>
+        </div>
+      </template>
+      <div style="margin-top: 8px; font-size: 14px">
+        您的账户已于 {{ userStore.userInfo.expirationTime }} 过期。
+        请联系管理员续费后继续使用会员功能。
+      </div>
+    </el-alert>
+
     <!-- 个人信息卡片 -->
     <div class="profile-card">
       <div class="profile-header">
@@ -45,6 +82,21 @@
           </el-descriptions-item>
           <el-descriptions-item label="注册时间">
             {{ userStore.userInfo.createdTime || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="过期时间" :span="2">
+            <div v-if="userStore.userInfo.expirationTime">
+              <span>{{ userStore.userInfo.expirationTime }}</span>
+              <el-tag v-if="userStore.userInfo.expired" type="danger" size="small" style="margin-left: 8px">
+                已过期
+              </el-tag>
+              <el-tag v-else-if="userStore.userInfo.expirationWarning" type="warning" size="small" style="margin-left: 8px">
+                {{ userStore.userInfo.daysUntilExpiration }}天后过期
+              </el-tag>
+              <el-tag v-else type="success" size="small" style="margin-left: 8px">
+                {{ userStore.userInfo.daysUntilExpiration }}天后过期
+              </el-tag>
+            </div>
+            <el-tag v-else type="info" size="small">永久有效</el-tag>
           </el-descriptions-item>
         </el-descriptions>
       </div>
@@ -116,7 +168,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Edit } from '@element-plus/icons-vue'
+import { Edit, WarningFilled, CircleCloseFilled } from '@element-plus/icons-vue'
 import { getCurrentUser, updateUser } from '../api/user'
 import { useUserStore, ROLE, GENDER_NAME } from '../store/user'
 

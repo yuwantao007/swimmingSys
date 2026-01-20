@@ -55,4 +55,14 @@ public class UserQueryDTO implements Serializable {
      * 状态：0-禁用，1-启用
      */
     private Integer status;
+
+    /**
+     * 过期状态：all-全部，expired-已过期，expiring-即将过期，normal-正常
+     */
+    private String expirationStatus;
+
+    /**
+     * 预警天数，用于判定“即将过期”，默认7天
+     */
+    private Integer warningDays = 7;
 }

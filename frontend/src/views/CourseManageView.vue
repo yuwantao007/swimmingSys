@@ -163,9 +163,8 @@
         <el-form-item label="课程容量" prop="capacity">
           <el-input-number 
             v-model="courseForm.capacity" 
-            :min="1" 
+            :min="courseForm.currentCount || 1" 
             :max="100"
-            :disabled="isEdit && courseForm.currentCount > 0"
             style="width: 200px"
           />
           <span v-if="isEdit && courseForm.currentCount > 0" class="capacity-hint">

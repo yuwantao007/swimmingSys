@@ -1,144 +1,223 @@
 <template>
   <div class="home-container">
-    <!-- 欢迎卡片 -->
-    <div class="welcome-card">
-      <div class="welcome-content">
-        <div class="welcome-avatar">
+    <!-- 顶部用户信息卡片区域 -->
+    <div class="user-info-card">
+      <div class="user-card-content">
+        <div class="user-avatar">
           <el-avatar :size="64" :src="userStore.userInfo.avatar || ''">
             {{ userStore.userInfo.userName?.charAt(0) || 'U' }}
           </el-avatar>
         </div>
-        <div class="welcome-info">
+        <div class="user-welcome">
           <h2>{{ greeting }}，{{ userStore.userInfo.userName || '用户' }}！</h2>
-          <p>欢迎使用游泳馆会员管理系统</p>
+          <p v-if="userStore.isMember">会员身份：{{ userStore.roleName }}</p>
+          <p v-else>非会员用户</p>
+          
+          <!-- 会员到期时间提醒 -->
+          <div v-if="userStore.isMember && userStore.userInfo.expirationTime" class="expiration-info">
+            <el-tag 
+              :type="daysUntilExpiration <= 7 ? 'danger' : daysUntilExpiration <= 30 ? 'warning' : 'success'"
+              size="small"
+            >
+              <el-icon><Clock /></el-icon>
+              会员到期：{{ userStore.userInfo.expirationTime }}
+              <span v-if="daysUntilExpiration > 0">（{{ daysUntilExpiration }}天后到期）</span>
+              <span v-else-if="daysUntilExpiration <= 0">（已过期）</span>
+            </el-tag>
+          </div>
+          
+          <!-- 预约课程状态提示 -->
+          <div v-if="upcomingBooking" class="booking-status">
+            <el-tag type="primary" size="small">
+              <el-icon><Calendar /></el-icon>
+              即将上课：{{ upcomingBooking.courseName }} {{ upcomingBooking.bookingDate }}
+            </el-tag>
+          </div>
+        </div>
+        <div class="user-actions">
+          <el-button type="primary" @click="router.push('/user/profile')" plain>个人中心</el-button>
+          <el-button @click="router.push('/booking/my')" plain>我的预约</el-button>
         </div>
       </div>
-      <div class="welcome-decoration">
-        <svg viewBox="0 0 200 100" fill="none">
-          <path d="M0 50 Q50 20 100 50 T200 50" stroke="rgba(255,255,255,0.3)" stroke-width="2" fill="none"/>
-          <path d="M0 60 Q50 30 100 60 T200 60" stroke="rgba(255,255,255,0.2)" stroke-width="2" fill="none"/>
-          <path d="M0 70 Q50 40 100 70 T200 70" stroke="rgba(255,255,255,0.1)" stroke-width="2" fill="none"/>
-        </svg>
+    </div>
+
+    <!-- 轮播推荐区域 -->
+    <div class="carousel-section">
+      <div class="section-title">
+        <h3>推荐课程</h3>
+      </div>
+      <el-carousel 
+        v-if="recommendedCourses.length > 0" 
+        height="240px" 
+        :interval="5000" 
+        type="card" 
+        arrow="always"
+      >
+        <el-carousel-item 
+          v-for="course in recommendedCourses" 
+          :key="course.id"
+          @click="viewCourseDetail(course)"
+        >
+          <div class="carousel-item">
+            <img 
+              :src="getCourseImageUrl(course.coverImage, course.courseType)" 
+              alt="课程封面" 
+              class="carousel-image"
+              @error="handleImageError"
+            />
+            <div class="carousel-overlay">
+              <h4>{{ course.courseName }}</h4>
+              <p>{{ course.description }}</p>
+              <div class="course-meta">
+                <span><el-icon><Clock /></el-icon> {{ course.duration }}分钟</span>
+                <span><el-icon><User /></el-icon> {{ course.maxStudents }}人</span>
+              </div>
+            </div>
+          </div>
+        </el-carousel-item>
+      </el-carousel>
+      <div v-else class="empty-carousel">
+        <el-empty description="暂无推荐课程" :image-size="100" />
       </div>
     </div>
 
-    <!-- 统计卡片区域（仅管理员显示） -->
-    <div v-if="userStore.isAdmin" class="stats-section">
+    <!-- 课程/内容展示区域 -->
+    <div class="courses-section">
       <div class="section-title">
-        <h3>系统概览</h3>
+        <h3>热门课程</h3>
+        <el-button type="primary" size="small" @click="router.push('/course/list')">更多课程</el-button>
       </div>
       <el-row :gutter="20">
-        <el-col :xs="12" :sm="6">
-          <div class="stat-card stat-card-blue">
-            <div class="stat-icon">
-              <el-icon><User /></el-icon>
+        <el-col 
+          :xs="24" 
+          :sm="12" 
+          :md="8" 
+          v-for="course in popularCourses" 
+          :key="course.id"
+          class="course-col"
+        >
+          <el-card 
+            shadow="hover" 
+            class="course-card"
+            @click="viewCourseDetail(course)"
+          >
+            <template #header>
+              <div class="course-header">
+                <span class="course-name">{{ course.courseName }}</span>
+                <el-tag 
+                  :type="getCourseStatusTag(course.status)" 
+                  size="small"
+                >
+                  {{ getCourseStatusText(course.status) }}
+                </el-tag>
+              </div>
+            </template>
+            <div class="course-body">
+              <img 
+                :src="getCourseImageUrl(course.coverImage, course.courseType)" 
+                alt="课程封面" 
+                class="course-image"
+                @error="handleImageError"
+              />
+              <div class="course-info">
+                <p class="course-desc">{{ course.description }}</p>
+                <div class="course-details">
+                  <div class="detail-item">
+                    <el-icon><Clock /></el-icon>
+                    <span>{{ course.duration }}分钟</span>
+                  </div>
+                  <div class="detail-item">
+                    <el-icon><User /></el-icon>
+                    <span>{{ course.currentStudents }}/{{ course.maxStudents }}人</span>
+                  </div>
+                  <div class="detail-item">
+                    <el-icon><Calendar /></el-icon>
+                    <span>{{ course.schedule }}</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="stat-info">
-              <span class="stat-value">--</span>
-              <span class="stat-label">用户总数</span>
-            </div>
-          </div>
-        </el-col>
-        <el-col :xs="12" :sm="6">
-          <div class="stat-card stat-card-green">
-            <div class="stat-icon">
-              <el-icon><UserFilled /></el-icon>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">--</span>
-              <span class="stat-label">会员数量</span>
-            </div>
-          </div>
-        </el-col>
-        <el-col :xs="12" :sm="6">
-          <div class="stat-card stat-card-orange">
-            <div class="stat-icon">
-              <el-icon><Calendar /></el-icon>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">--</span>
-              <span class="stat-label">今日预约</span>
-            </div>
-          </div>
-        </el-col>
-        <el-col :xs="12" :sm="6">
-          <div class="stat-card stat-card-purple">
-            <div class="stat-icon">
-              <el-icon><Ticket /></el-icon>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">--</span>
-              <span class="stat-label">今日入场</span>
-            </div>
-          </div>
+          </el-card>
         </el-col>
       </el-row>
     </div>
 
-    <!-- 快捷入口 -->
-    <div class="quick-entry-section">
+    <!-- 底部内容区域 -->
+    <div class="content-section">
       <div class="section-title">
-        <h3>快捷入口</h3>
+        <h3>游泳知识 & 健康资讯</h3>
+        <el-button type="primary" size="small" @click="router.push('/articles/public')">更多资讯</el-button>
       </div>
       <el-row :gutter="20">
-        <el-col v-if="userStore.isAdmin" :xs="12" :sm="8" :md="6">
-          <div class="quick-card" @click="router.push('/user/list')">
-            <el-icon class="quick-icon"><User /></el-icon>
-            <span class="quick-label">用户管理</span>
-          </div>
-        </el-col>
-        <el-col :xs="12" :sm="8" :md="6">
-          <div class="quick-card" @click="router.push('/user/profile')">
-            <el-icon class="quick-icon"><UserFilled /></el-icon>
-            <span class="quick-label">个人中心</span>
-          </div>
+        <el-col 
+          :xs="24" 
+          :sm="12" 
+          :md="8" 
+          v-for="article in featuredArticles" 
+          :key="article.id"
+          class="article-col"
+        >
+          <el-card 
+            shadow="hover" 
+            class="article-card"
+            @click="viewArticleDetail(article)"
+          >
+            <img 
+              :src="getArticleImageUrl(article.coverImage)" 
+              alt="文章封面" 
+              class="article-image"
+              @error="handleImageError"
+            />
+            <div class="article-content">
+              <h4 class="article-title">{{ article.title }}</h4>
+              <p class="article-summary">{{ article.summary }}</p>
+              <div class="article-meta">
+                <span class="author">{{ article.authorName }}</span>
+                <span class="date">{{ formatDate(article.createdTime) }}</span>
+              </div>
+            </div>
+          </el-card>
         </el-col>
       </el-row>
-    </div>
-
-    <!-- 个人信息卡片（非管理员显示） -->
-    <div v-if="!userStore.isAdmin" class="user-info-section">
-      <div class="section-title">
-        <h3>我的信息</h3>
-      </div>
-      <div class="user-info-card">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="用户账号">
-            {{ userStore.userInfo.userAccount || '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="用户名">
-            {{ userStore.userInfo.userName || '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="手机号">
-            {{ userStore.userInfo.phone || '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="邮箱">
-            {{ userStore.userInfo.email || '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="角色">
-            <el-tag :type="getRoleTagType(userStore.userInfo.role)">
-              {{ userStore.roleName }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="状态">
-            <el-tag :type="userStore.userInfo.status === 1 ? 'success' : 'danger'">
-              {{ userStore.userInfo.status === 1 ? '正常' : '禁用' }}
-            </el-tag>
-          </el-descriptions-item>
-        </el-descriptions>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { User, UserFilled, Calendar, Ticket } from '@element-plus/icons-vue'
-import { useUserStore, ROLE } from '../store/user'
+import { ElMessage } from 'element-plus'
+import { 
+  User, 
+  Calendar, 
+  Clock,
+  Document,
+  ArrowRight
+} from '@element-plus/icons-vue'
+import { useUserStore } from '../store/user'
+import { getCourseList } from '@/api/course'
+import { getPublicArticleList } from '@/api/article'
 
 const router = useRouter()
 const userStore = useUserStore()
+
+// 推荐课程数据
+const recommendedCourses = ref([])
+// 热门课程数据
+const popularCourses = ref([])
+// 精选文章数据
+const featuredArticles = ref([])
+// 即将上课的预约
+const upcomingBooking = ref(null)
+
+// 计算会员到期天数
+const daysUntilExpiration = computed(() => {
+  if (!userStore.userInfo.expirationTime) return null
+  const expirationDate = new Date(userStore.userInfo.expirationTime)
+  const today = new Date()
+  const timeDiff = expirationDate.getTime() - today.getTime()
+  return Math.ceil(timeDiff / (1000 * 3600 * 24))
+})
 
 // 根据时间段显示问候语
 const greeting = computed(() => {
@@ -150,215 +229,453 @@ const greeting = computed(() => {
   return '晚上好'
 })
 
-// 获取角色标签类型
-const getRoleTagType = (role) => {
-  if (role === ROLE.ADMIN) return 'danger'
-  if (role === ROLE.MEMBER) return 'success'
-  return 'info'
+// 获取推荐课程
+const fetchRecommendedCourses = async () => {
+  try {
+    const response = await getCourseList({
+      pageNum: 1,
+      pageSize: 5,
+      sortBy: 'isFeatured',
+      sortOrder: 'desc'
+    })
+    
+    if (response.code === 200) {
+      recommendedCourses.value = (response.data.records || response.data.list || []).slice(0, 3)
+    }
+  } catch (error) {
+    console.error('获取推荐课程失败:', error)
+    ElMessage.error('获取推荐课程失败')
+  }
 }
+
+// 获取热门课程
+const fetchPopularCourses = async () => {
+  try {
+    const response = await getCourseList({
+      pageNum: 1,
+      pageSize: 6,
+      sortBy: 'enrollmentCount',
+      sortOrder: 'desc'
+    })
+    
+    if (response.code === 200) {
+      popularCourses.value = (response.data.records || response.data.list || []).slice(0, 3)
+    }
+  } catch (error) {
+    console.error('获取热门课程失败:', error)
+    ElMessage.error('获取热门课程失败')
+  }
+}
+
+// 获取精选文章
+const fetchFeaturedArticles = async () => {
+  try {
+    const response = await getPublicArticleList({
+      pageNum: 1,
+      pageSize: 3,
+      status: 1,
+      sortBy: 'viewCount',
+      sortOrder: 'desc'
+    })
+    
+    if (response.code === 200) {
+      featuredArticles.value = response.data.records || response.data.list || []
+    }
+  } catch (error) {
+    console.error('获取精选文章失败:', error)
+    ElMessage.error('获取精选文章失败')
+  }
+}
+
+// 获取课程图片URL
+const getCourseImageUrl = (imagePath, courseType = '') => {
+  // 如果有具体的图片路径，使用后端API访问
+  if (imagePath && !imagePath.startsWith('http')) {
+    const backendBaseUrl = window.location.origin.replace(':3000', ':8080') // 假设后端运行在8080端口
+    return `${backendBaseUrl}/api/v1/files/access/${imagePath}`
+  }
+  
+  // 如果是网络图片直接返回
+  if (imagePath && imagePath.startsWith('http')) return imagePath
+  
+  // 如果没有图片，根据课程类型返回不同默认图片
+  const imageMap = {
+    '基础班': 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?w=400&h=250&fit=crop',
+    '提高班': 'https://images.unsplash.com/photo-1560089000-7433a4ebbd64?w=400&h=250&fit=crop',
+    '私教课': 'https://images.unsplash.com/photo-1576610616656-d3aa5d1f4534?w=400&h=250&fit=crop'
+  }
+  return imageMap[courseType] || imageMap['基础班']
+}
+
+// 获取文章图片URL
+const getArticleImageUrl = (imagePath) => {
+  // 如果有具体的图片路径，使用后端API访问
+  if (imagePath && !imagePath.startsWith('http')) {
+    const backendBaseUrl = window.location.origin.replace(':3000', ':8080') // 假设后端运行在8080端口
+    return `${backendBaseUrl}/api/v1/files/access/${imagePath}`
+  }
+  
+  // 如果是网络图片直接返回
+  if (imagePath && imagePath.startsWith('http')) return imagePath
+  
+  // 如果没有图片，返回默认图片
+  return 'https://images.unsplash.com/photo-1519315901367-f34ff9154487?w=400&h=250&fit=crop'
+}
+
+// 查看课程详情
+const viewCourseDetail = (course) => {
+  router.push(`/course/detail/${course.id}`)
+}
+
+// 查看文章详情
+const viewArticleDetail = (article) => {
+  router.push(`/articles/detail/${article.id}`)
+}
+
+// 获取课程状态标签类型
+const getCourseStatusTag = (status) => {
+  switch (status) {
+    case 1: return 'success' // 已发布
+    case 2: return 'info'    // 草稿
+    case 3: return 'warning' // 已关闭
+    default: return 'info'
+  }
+}
+
+// 获取课程状态文本
+const getCourseStatusText = (status) => {
+  switch (status) {
+    case 1: return '已发布'
+    case 2: return '草稿'
+    case 3: return '已关闭'
+    default: return '未知'
+  }
+}
+
+// 格式化日期
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+// 图片加载错误处理
+const handleImageError = (event) => {
+  // 使用空白图片作为占位符，避免无限循环
+  event.target.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+  event.target.style.backgroundColor = '#f5f5f5'
+  event.target.style.display = 'flex'
+  event.target.style.alignItems = 'center'
+  event.target.style.justifyContent = 'center'
+  event.target.textContent = '图片加载失败'
+  event.target.style.color = '#999'
+  event.target.style.fontSize = '14px'
+}
+
+onMounted(async () => {
+  // 加载所有数据，使用try-catch避免错误导致的问题
+  try {
+    await Promise.all([
+      fetchRecommendedCourses(),
+      fetchPopularCourses(),
+      fetchFeaturedArticles()
+    ])
+  } catch (error) {
+    console.error('首页数据加载失败:', error)
+  }
+})
 </script>
 
 <style scoped>
 .home-container {
-  padding: 0;
+  padding: 20px;
+  background-color: #f5f7fa;
+  min-height: calc(100vh - 60px);
 }
 
-/* 欢迎卡片 */
-.welcome-card {
+/* 顶部用户信息卡片 */
+.user-info-card {
   background: linear-gradient(135deg, #1A6B9F 0%, #2AA9E0 100%);
   border-radius: 12px;
-  padding: 32px;
+  padding: 24px;
   color: white;
-  position: relative;
-  overflow: hidden;
   margin-bottom: 24px;
+  box-shadow: 0 4px 12px rgba(26, 107, 159, 0.2);
 }
 
-.welcome-content {
+.user-card-content {
   display: flex;
   align-items: center;
   gap: 20px;
-  position: relative;
-  z-index: 1;
+  flex-wrap: wrap;
 }
 
-.welcome-avatar :deep(.el-avatar) {
+.user-avatar :deep(.el-avatar) {
   background: rgba(255, 255, 255, 0.2);
   font-size: 24px;
   font-weight: 600;
+  border: 3px solid rgba(255, 255, 255, 0.3);
 }
 
-.welcome-info h2 {
+.user-welcome h2 {
   margin: 0 0 8px 0;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 600;
 }
 
-.welcome-info p {
-  margin: 0;
+.user-welcome p {
+  margin: 0 0 8px 0;
   font-size: 14px;
   opacity: 0.9;
 }
 
-.welcome-decoration {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 200px;
-  height: 100px;
-  opacity: 0.5;
+.expiration-info, .booking-status {
+  margin-top: 8px;
 }
 
-/* 统计卡片 */
-.stats-section {
-  margin-bottom: 24px;
+.user-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* 轮播推荐区域 */
+.carousel-section {
+  margin-bottom: 32px;
 }
 
 .section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 16px;
 }
 
 .section-title h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   color: #303133;
 }
 
-.stat-card {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  transition: transform 0.3s, box-shadow 0.3s;
+.carousel-item {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 100%;
+  cursor: pointer;
 }
 
-.stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+.carousel-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
+.carousel-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
   color: white;
+  padding: 20px;
+  text-align: left;
 }
 
-.stat-card-blue .stat-icon {
-  background: linear-gradient(135deg, #409EFF 0%, #67C23A 100%);
+.carousel-overlay h4 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
 }
 
-.stat-card-green .stat-icon {
-  background: linear-gradient(135deg, #67C23A 0%, #95D475 100%);
+.carousel-overlay p {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  opacity: 0.9;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.stat-card-orange .stat-icon {
-  background: linear-gradient(135deg, #E6A23C 0%, #F5C161 100%);
-}
-
-.stat-card-purple .stat-icon {
-  background: linear-gradient(135deg, #9C27B0 0%, #BA68C8 100%);
-}
-
-.stat-info {
+.course-meta {
   display: flex;
-  flex-direction: column;
+  gap: 12px;
+  font-size: 12px;
 }
 
-.stat-value {
-  font-size: 24px;
-  font-weight: 700;
+.course-meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.empty-carousel {
+  text-align: center;
+  padding: 40px 0;
+}
+
+/* 课程展示区域 */
+.courses-section {
+  margin-bottom: 32px;
+}
+
+.course-col {
+  margin-bottom: 20px;
+}
+
+.course-card {
+  cursor: pointer;
+  transition: all 0.3s;
+  border-radius: 8px;
+}
+
+.course-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.course-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.course-name {
+  font-weight: 600;
   color: #303133;
 }
 
-.stat-label {
+.course-body {
+  display: flex;
+}
+
+.course-image {
+  width: 80px;
+  height: 80px;
+  border-radius: 4px;
+  object-fit: cover;
+  margin-right: 12px;
+}
+
+.course-info {
+  flex: 1;
+}
+
+.course-desc {
+  margin: 0 0 8px 0;
   font-size: 13px;
-  color: #909399;
-  margin-top: 4px;
+  color: #606266;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-/* 快捷入口 */
-.quick-entry-section {
-  margin-bottom: 24px;
-}
-
-.quick-card {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
+.course-details {
   display: flex;
   flex-direction: column;
+  gap: 4px;
+}
+
+.detail-item {
+  display: flex;
   align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
 }
 
-.quick-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-  background: linear-gradient(135deg, #1A6B9F 0%, #2AA9E0 100%);
-  color: white;
-}
-
-.quick-icon {
-  font-size: 32px;
-  color: #1A6B9F;
-  transition: color 0.3s;
-}
-
-.quick-card:hover .quick-icon {
-  color: white;
-}
-
-.quick-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: #606266;
-  transition: color 0.3s;
-}
-
-.quick-card:hover .quick-label {
-  color: white;
-}
-
-/* 用户信息区域 */
-.user-info-section {
+/* 底部内容区域 */
+.content-section {
   margin-bottom: 24px;
 }
 
-.user-info-card {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+.article-col {
+  margin-bottom: 20px;
 }
 
-/* 响应式 */
+.article-card {
+  cursor: pointer;
+  transition: all 0.3s;
+  border-radius: 8px;
+}
+
+.article-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.article-image {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px 8px 0 0;
+}
+
+.article-content {
+  padding: 12px;
+}
+
+.article-title {
+  margin: 0 0 8px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.article-summary {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  color: #606266;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.article-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #909399;
+}
+
+/* 响应式设计 */
 @media (max-width: 768px) {
-  .welcome-card {
-    padding: 20px;
+  .home-container {
+    padding: 10px;
   }
   
-  .welcome-info h2 {
-    font-size: 18px;
+  .user-card-content {
+    flex-direction: column;
+    text-align: center;
   }
   
-  .stat-card {
-    padding: 16px;
+  .user-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
   }
   
-  .stat-value {
-    font-size: 20px;
+  .section-title {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .carousel-section {
+    margin-bottom: 24px;
+  }
+  
+  .courses-section, .content-section {
+    margin-bottom: 24px;
   }
 }
 </style>

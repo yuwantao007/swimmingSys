@@ -1,6 +1,7 @@
 package com.swimmingsys.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.swimmingsys.common.ResultCode;
@@ -9,6 +10,7 @@ import com.swimmingsys.common.exception.BusinessException;
 import com.swimmingsys.common.exception.UnauthorizedException;
 import com.swimmingsys.mapper.UserMapper;
 import com.swimmingsys.model.dto.UserAddDTO;
+import com.swimmingsys.model.dto.UserBatchExpirationDTO;
 import com.swimmingsys.model.dto.UserLoginDTO;
 import com.swimmingsys.model.dto.UserQueryDTO;
 import com.swimmingsys.model.dto.UserRegisterDTO;
@@ -20,10 +22,15 @@ import com.swimmingsys.utils.JwtUtil;
 import com.swimmingsys.utils.Md5Util;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 用户服务实现类
@@ -209,10 +216,15 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException(ResultCode.USER_DISABLED.getMessage());
         }
 
-        // 6. 生成JWT令牌
+        // 6. 校验用户是否过期
+        if (isUserExpired(user)) {
+            throw new RuntimeException("账户已过期，请联系管理员续费");
+        }
+
+        // 7. 生成JWT令牌
         String token = jwtUtil.generateToken(user.getId(), user.getUserAccount(), user.getRole());
 
-        // 7. 返回用户信息（包含令牌）
+        // 8. 返回用户信息（包含令牌）
         UserVO userVO = convertToUserVO(user);
         userVO.setToken(token);
         return userVO;
@@ -225,11 +237,39 @@ public class UserServiceImpl implements UserService {
      * @return 用户VO
      */
     private UserVO convertToUserVO(User user) {
+        return convertToUserVO(user, 7);
+    }
+
+    /**
+     * 将User实体类转换为UserVO（带过期计算）
+     *
+     * @param user        用户实体
+     * @param warningDays 预警天数
+     * @return 用户VO
+     */
+    private UserVO convertToUserVO(User user, int warningDays) {
         if (user == null) {
             return null;
         }
         UserVO userVO = new UserVO();
         BeanUtils.copyProperties(user, userVO);
+
+        // 计算过期相关字段
+        if (user.getExpirationTime() == null) {
+            // 未设置过期时间，表示永久有效
+            userVO.setExpired(false);
+            userVO.setDaysUntilExpiration(Long.MAX_VALUE);
+            userVO.setExpirationWarning(false);
+        } else {
+            LocalDateTime now = LocalDateTime.now();
+            boolean expired = now.isAfter(user.getExpirationTime());
+            long days = ChronoUnit.DAYS.between(now, user.getExpirationTime());
+
+            userVO.setExpired(expired);
+            userVO.setDaysUntilExpiration(days);
+            userVO.setExpirationWarning(!expired && days >= 0 && days <= warningDays);
+        }
+
         return userVO;
     }
 
@@ -320,6 +360,41 @@ public class UserServiceImpl implements UserService {
         if (queryDTO.getStatus() != null) {
             queryWrapper.eq("status", queryDTO.getStatus());
         }
+
+        // 过期状态筛选
+        if (StringUtils.hasText(queryDTO.getExpirationStatus())) {
+            LocalDateTime now = LocalDateTime.now();
+            int warningDays = queryDTO.getWarningDays() != null ? queryDTO.getWarningDays() : 7;
+
+            switch (queryDTO.getExpirationStatus()) {
+                case "expired":
+                    // 已过期：expiration_time < now
+                    queryWrapper.isNotNull("expiration_time");
+                    queryWrapper.lt("expiration_time", now);
+                    break;
+                case "expiring":
+                    // 即将过期：now <= expiration_time <= now + warningDays
+                    LocalDateTime warningTime = now.plusDays(warningDays);
+                    queryWrapper.isNotNull("expiration_time");
+                    queryWrapper.ge("expiration_time", now);
+                    queryWrapper.le("expiration_time", warningTime);
+                    break;
+                case "normal":
+                    // 正常：expiration_time > now + warningDays 或 expiration_time 为 NULL
+                    LocalDateTime normalTime = now.plusDays(warningDays);
+                    queryWrapper.and(wrapper -> wrapper
+                            .isNull("expiration_time")
+                            .or()
+                            .gt("expiration_time", normalTime)
+                    );
+                    break;
+                case "all":
+                default:
+                    // 全部，不添加过期筛选条件
+                    break;
+            }
+        }
+
         // 排除已删除用户
         queryWrapper.eq("is_delete", 0);
         // 按创建时间倒序
@@ -329,8 +404,9 @@ public class UserServiceImpl implements UserService {
         Page<User> page = new Page<>(queryDTO.getPageNum(), queryDTO.getPageSize());
         IPage<User> userPage = userMapper.selectPage(page, queryWrapper);
 
-        // 3. 转换为VO分页
-        IPage<UserVO> userVOPage = userPage.convert(this::convertToUserVO);
+        // 3. 转换为VO分页（包含过期状态计算）
+        int warningDays = queryDTO.getWarningDays() != null ? queryDTO.getWarningDays() : 7;
+        IPage<UserVO> userVOPage = userPage.convert(user -> convertToUserVO(user, warningDays));
         return userVOPage;
     }
 
@@ -410,6 +486,7 @@ public class UserServiceImpl implements UserService {
         user.setAvatar(addDTO.getAvatar());
         user.setRole(addDTO.getRole());
         user.setStatus(addDTO.getStatus());
+        user.setExpirationTime(addDTO.getExpirationTime());
 
         // 6. 插入数据库
         int result = userMapper.insert(user);
@@ -486,7 +563,7 @@ public class UserServiceImpl implements UserService {
             user.setAvatar(updateDTO.getAvatar());
         }
 
-        // 仅管理员可修改的字段：role, status, password
+        // 仅管理员可修改的字段：role, status, password, expirationTime
         if (isAdmin) {
             if (updateDTO.getRole() != null) {
                 user.setRole(updateDTO.getRole());
@@ -497,6 +574,8 @@ public class UserServiceImpl implements UserService {
             if (StringUtils.hasText(updateDTO.getPassword())) {
                 user.setPassword(Md5Util.encrypt(updateDTO.getPassword().trim()));
             }
+            // 管理员可以设置过期时间（包括设置为NULL清空）
+            user.setExpirationTime(updateDTO.getExpirationTime());
         }
 
         // 5. 更新数据库
@@ -531,5 +610,240 @@ public class UserServiceImpl implements UserService {
         // 3. 逻辑删除（MyBatis-Plus会自动处理@TableLogic注解）
         int result = userMapper.deleteById(id);
         return result > 0;
+    }
+
+    // ==================== 过期管理方法实现 ====================
+
+    /**
+     * 检查用户是否已过期
+     *
+     * @param user 用户实体
+     * @return 是否已过期
+     */
+    @Override
+    public boolean isUserExpired(User user) {
+        if (user == null || user.getExpirationTime() == null) {
+            return false; // 未设置过期时间，表示永久有效
+        }
+        LocalDateTime now = LocalDateTime.now();
+        return now.isAfter(user.getExpirationTime());
+    }
+
+    /**
+     * 计算距离过期天数
+     *
+     * @param user 用户实体
+     * @return 距离过期天数（负数表示已过期）
+     */
+    @Override
+    public long getDaysUntilExpiration(User user) {
+        if (user == null || user.getExpirationTime() == null) {
+            return Long.MAX_VALUE; // 未设置过期时间，返回最大值
+        }
+        LocalDateTime now = LocalDateTime.now();
+        return ChronoUnit.DAYS.between(now, user.getExpirationTime());
+    }
+
+    /**
+     * 检查并处理过期用户
+     * 将过期会员降级为非会员并禁用账户
+     *
+     * @return 处理结果统计
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> checkAndHandleExpiredUsers() {
+        Map<String, Object> result = new HashMap<>();
+
+        // 1. 查询所有过期的用户（expirationTime < now）
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.isNotNull("expiration_time");
+        queryWrapper.lt("expiration_time", LocalDateTime.now());
+        queryWrapper.eq("status", 1); // 仅处理启用状态的用户
+        queryWrapper.eq("is_delete", 0); // 未删除
+
+        List<User> expiredUsers = userMapper.selectList(queryWrapper);
+        int totalCount = expiredUsers.size();
+
+        if (totalCount == 0) {
+            result.put("success", true);
+            result.put("message", "没有需要处理的过期用户");
+            result.put("totalCount", 0);
+            result.put("processedCount", 0);
+            return result;
+        }
+
+        // 2. 批量更新过期用户：降级为非会员 + 禁用账户
+        UpdateWrapper<User> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.isNotNull("expiration_time");
+        updateWrapper.lt("expiration_time", LocalDateTime.now());
+        updateWrapper.eq("status", 1);
+        updateWrapper.eq("is_delete", 0);
+        updateWrapper.set("role", 2); // 降级为非会员
+        updateWrapper.set("status", 0); // 禁用账户
+
+        int processedCount = userMapper.update(null, updateWrapper);
+
+        // 3. 清除会员统计缓存
+        try {
+            statisticsService.clearMemberCache();
+            statisticsService.clearDashboardCache();
+        } catch (Exception e) {
+            // 缓存清除失败不影响主业务
+        }
+
+        // 4. 返回处理结果
+        result.put("success", true);
+        result.put("message", "成功处理过期用户");
+        result.put("totalCount", totalCount);
+        result.put("processedCount", processedCount);
+        result.put("expiredUserIds", expiredUsers.stream().map(User::getId).collect(Collectors.toList()));
+
+        return result;
+    }
+
+    /**
+     * 获取即将过期的用户列表
+     *
+     * @param days 预警天数
+     * @return 即将过期的用户列表
+     */
+    @Override
+    public List<UserVO> getExpiringUsers(int days) {
+        // 1. 参数校验
+        if (days < 1) {
+            throw new RuntimeException("预警天数必须大于0");
+        }
+
+        // 2. 构建查询条件：now <= expiration_time <= now + days
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime warningTime = now.plusDays(days);
+
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.isNotNull("expiration_time");
+        queryWrapper.ge("expiration_time", now);
+        queryWrapper.le("expiration_time", warningTime);
+        queryWrapper.eq("status", 1); // 仅查询启用用户
+        queryWrapper.eq("is_delete", 0); // 未删除
+        queryWrapper.orderByAsc("expiration_time"); // 按过期时间升序
+
+        // 3. 查询并转换为VO
+        List<User> users = userMapper.selectList(queryWrapper);
+        return users.stream()
+                .map(user -> convertToUserVO(user, days))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 批量设置用户过期时间
+     *
+     * @param batchDTO 批量操作DTO
+     * @return 操作结果
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> batchSetExpiration(UserBatchExpirationDTO batchDTO) {
+        Map<String, Object> result = new HashMap<>();
+
+        // 1. 参数校验
+        if (batchDTO == null || batchDTO.getUserIds() == null || batchDTO.getUserIds().isEmpty()) {
+            throw new RuntimeException("用户ID列表不能为空");
+        }
+
+        String operationType = batchDTO.getOperationType();
+        if (!StringUtils.hasText(operationType)) {
+            throw new RuntimeException("操作类型不能为空");
+        }
+
+        List<Long> userIds = batchDTO.getUserIds();
+        int totalCount = userIds.size();
+        int successCount = 0;
+        List<String> errors = new ArrayList<>();
+
+        // 2. 根据操作类型处理
+        for (Long userId : userIds) {
+            try {
+                User user = userMapper.selectById(userId);
+                if (user == null || user.getIsDelete() == 1) {
+                    errors.add("用户ID " + userId + " 不存在或已删除");
+                    continue;
+                }
+
+                LocalDateTime newExpirationTime = null;
+
+                switch (operationType) {
+                    case "set":
+                        // 设置固定过期时间
+                        newExpirationTime = batchDTO.getExpirationTime();
+                        break;
+
+                    case "extend":
+                        // 延长过期时间
+                        if (batchDTO.getDays() == null || batchDTO.getDays() <= 0) {
+                            errors.add("用户ID " + userId + " 延长天数必须大于0");
+                            continue;
+                        }
+                        if (user.getExpirationTime() == null) {
+                            // 未设置过期时间，从当前时间开始延长
+                            newExpirationTime = LocalDateTime.now().plusDays(batchDTO.getDays());
+                        } else {
+                            newExpirationTime = user.getExpirationTime().plusDays(batchDTO.getDays());
+                        }
+                        break;
+
+                    case "shorten":
+                        // 缩短过期时间
+                        if (batchDTO.getDays() == null || batchDTO.getDays() <= 0) {
+                            errors.add("用户ID " + userId + " 缩短天数必须大于0");
+                            continue;
+                        }
+                        if (user.getExpirationTime() == null) {
+                            errors.add("用户ID " + userId + " 未设置过期时间，无法缩短");
+                            continue;
+                        }
+                        newExpirationTime = user.getExpirationTime().minusDays(batchDTO.getDays());
+                        break;
+
+                    case "clear":
+                        // 清空过期时间（设为NULL）
+                        newExpirationTime = null;
+                        break;
+
+                    default:
+                        errors.add("用户ID " + userId + " 不支持的操作类型: " + operationType);
+                        continue;
+                }
+
+                // 3. 更新数据库
+                user.setExpirationTime(newExpirationTime);
+                int updateResult = userMapper.updateById(user);
+                if (updateResult > 0) {
+                    successCount++;
+                } else {
+                    errors.add("用户ID " + userId + " 更新失败");
+                }
+
+            } catch (Exception e) {
+                errors.add("用户ID " + userId + " 处理异常: " + e.getMessage());
+            }
+        }
+
+        // 4. 清除会员统计缓存
+        try {
+            statisticsService.clearMemberCache();
+            statisticsService.clearDashboardCache();
+        } catch (Exception e) {
+            // 缓存清除失败不影响主业务
+        }
+
+        // 5. 返回结果
+        result.put("success", errors.isEmpty());
+        result.put("message", successCount + "/" + totalCount + " 个用户处理成功");
+        result.put("totalCount", totalCount);
+        result.put("successCount", successCount);
+        result.put("failCount", totalCount - successCount);
+        result.put("errors", errors);
+
+        return result;
     }
 }

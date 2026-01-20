@@ -60,6 +60,27 @@ public class UserVO implements Serializable {
     private Integer status;
 
     /**
+     * 账户过期时间，NULL表示永久有效
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    private LocalDateTime expirationTime;
+
+    /**
+     * 是否已过期
+     */
+    private Boolean expired;
+
+    /**
+     * 距离过期天数（负数表示已过期）
+     */
+    private Long daysUntilExpiration;
+
+    /**
+     * 是否需要过期预警
+     */
+    private Boolean expirationWarning;
+
+    /**
      * 创建时间
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
